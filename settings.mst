@@ -1,0 +1,52 @@
+[Donation Tracker Config]
+#
+# Fill out your channel and API Key
+#
+
+Channel=
+API-Key=
+
+#
+# Do you want any of the files to be cleared on start?
+#
+
+DailyDonationList=false
+DailyRecentDonation=false
+DailyTopDonation=false
+
+#
+# At what amount do you want the donation to
+# make a sound or save to a text file
+#
+
+SoundMinimum=1.00
+FileMinimum=1.00
+
+#
+# Number of people on donation list textfile
+#
+
+DonationListAmount=5
+
+#
+# WAV Alert Configuration
+#
+
+PlayWAV=true
+DonationWAV=sound.wav
+TopDonationWAV=sound.wav
+
+#
+# Format how the donations will look
+#
+#   {amount} = Amount with currency sign
+#   {note} = Note/memo field
+#   {username} = Twitch Username of contributer
+#   {processor} = Payment Processor
+#   {currencySymbol} = Currency Symbol
+#
+
+DonationFormatting={currencySymbol}{amount} - {note} - From: {username}
+TopDonationFormatting={currencySymbol}{amount} - From: {username}
+DonationListFormatting={username}: {currencySymbol}{amount}
+ConsoleFormatting={currencySymbol}{amount} - {note} - From: {username}, using {processor}
