@@ -1,6 +1,8 @@
 import donations
 import wx
+import wx.lib.agw.floatspin as FS
 import sys, os
+import ConfigParser
 from threading import Thread
 
 class RedirectText(object):
@@ -92,62 +94,102 @@ class ConfigWindow(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.nativeClose)
         
         # icon
-        icon = wx.Icon(resourcePath('icon.ico'), wx.BITMAP_TYPE_ICO)
-        self.SetIcon(icon)
+        self.icon = wx.Icon(resourcePath('icon.ico'), wx.BITMAP_TYPE_ICO)
+        self.SetIcon(self.icon)
+        
+        # config
+        self.config = ConfigParser.ConfigParser(allow_no_value = True, defaults={
+              'channel': '',
+              'api-key': '',
+              'dailydonationlist': 'false',
+              'dailyrecentdonation': 'false',
+              'dailytopdonation': 'false',
+              'soundminimum': '1.00',
+              'fileminimum': '1.00',
+              'donationlistamount': '5',
+              'playwav': 'true',
+              'donationwav': 'sound.wav',
+              'topdonationwav': 'sound.wav',
+              'donationformatting': '{currencySymbol}{amount} - {note} - From: {username}',
+              'topdonationformatting': '{currencySymbol}{amount} - From: {username}',
+              'donationlistformatting': '{username}: {currencySymbol}{amount}',
+              'consoleformatting': '{currencySymbol}{amount} - {note} - From: {username}, using {processor}',
+              })
+        self.config.read(resourcePath('settings.ini', user=True))
+        
+        if not self.config.has_section("Donation Tracker Config"):
+            self.config.add_section("Donation Tracker Config")
         
         # interface
-        scroll_window = wx.ScrolledWindow(self, -1)
+        self.scroll_window = wx.ScrolledWindow(self, -1)
         
-        main_panel = wx.Panel(scroll_window, -1)
+        self.main_panel = wx.Panel(self.scroll_window, -1)
         
-        channel_text_box_label = wx.StaticText(main_panel, label="Channel - your channel name on Twitch")
-        channel_text_box = wx.TextCtrl(main_panel, 1, size=(200,-1))
+        self.channel_text_box_label = wx.StaticText(self.main_panel, label="Channel - your channel name on Twitch")
+        self.channel_text_box = wx.TextCtrl(self.main_panel, 1, size=(200,-1))
+        self.channel_text_box.SetValue(self.config.get("Donation Tracker Config", 'channel'))
         
-        api_key_text_box_label = wx.StaticText(main_panel, label="API Key - your API key from StreamDonations.net")
-        api_key_text_box = wx.TextCtrl(main_panel, 1, size=(300,-1))
-        
-        
-        clear_files_label = wx.StaticText(main_panel, label="Clear the donation lists")
-        clear_donation_list_checkbox = wx.CheckBox(main_panel, 1, "Daily Donations List - clear the donations list on start")
-        clear_recent_donation_checkbox = wx.CheckBox(main_panel, 1, "Most Recent Donation - clear the most recent donation list on start")
-        clear_top_donation_checkbox = wx.CheckBox(main_panel, 1, "Daily Top Donation - clear the top donation list on start")
+        self.api_key_text_box_label = wx.StaticText(self.main_panel, label="API Key - your API key from StreamDonations.net")
+        self.api_key_text_box = wx.TextCtrl(self.main_panel, 1, size=(300,-1))
+        self.api_key_text_box.SetValue(self.config.get("Donation Tracker Config", 'api-key'))
         
         
-        sound_min_text_box_label = wx.StaticText(main_panel, label="Alarm Minimum - minimum donation amount before triggering alarm")
-        sound_min_text_box = wx.TextCtrl(main_panel, 1, size=(100,-1))
+        self.clear_files_label = wx.StaticText(self.main_panel, label="Clear the donation lists")
+        self.clear_donation_list_checkbox = wx.CheckBox(self.main_panel, 1, "Daily Donations List - clear the donations list on start")
+        self.clear_donation_list_checkbox.SetValue(self.config.getboolean("Donation Tracker Config", 'dailydonationlist'))
         
-        file_min_text_box_label = wx.StaticText(main_panel, label="File Minimum - minimum donation amount before adding to the list")
-        file_min_text_box = wx.TextCtrl(main_panel, 1, size=(100,-1))
+        self.clear_recent_donation_checkbox = wx.CheckBox(self.main_panel, 1, "Most Recent Donation - clear the most recent donation list on start")
+        self.clear_recent_donation_checkbox.SetValue(self.config.getboolean("Donation Tracker Config", 'dailyrecentdonation'))
         
-        
-        donation_list_amount_box_label = wx.StaticText(main_panel, label="Donation List Amount - number of donations to include in the list")
-        donation_list_amount_box = wx.TextCtrl(main_panel, 1, size=(100,-1))
-        
-        
-        play_sound_checkbox = wx.CheckBox(main_panel, 1, "Play Sound - Play a sounds for new donations")
-        
-        donation_sound_text_box_label = wx.StaticText(main_panel, label="New Donation Sound - sound to play with a new donation. Enter the file name. MUST be in WAV format")
-        donation_sound_text_box = wx.TextCtrl(main_panel, 1, size=(400,-1))
-        
-        top_donation_sound_text_box_label = wx.StaticText(main_panel, label="New Top Donation Sound - sound to play with a new top donation. Enter the file name. MUST be in WAV format")
-        top_donation_sound_text_box = wx.TextCtrl(main_panel, 1, size=(400,-1))
+        self.clear_top_donation_checkbox = wx.CheckBox(self.main_panel, 1, "Daily Top Donation - clear the top donation list on start")
+        self.clear_top_donation_checkbox.SetValue(self.config.getboolean("Donation Tracker Config", 'dailytopdonation'))
         
         
-        donation_formatting_label = wx.StaticText(main_panel, label="Donation Formatting - format how the donations will look. For advanced users only")
+        self.sound_min_text_box_label = wx.StaticText(self.main_panel, label="Alarm Minimum - minimum donation amount before triggering alarm")
+        self.sound_min_text_box = FS.FloatSpin(self.main_panel, 1, size=(100,-1), min_val=0, max_val=1000, increment=1.0, digits=1)
+        self.sound_min_text_box.SetValue(self.config.getfloat("Donation Tracker Config", 'soundminimum'))
         
-        donation_formatting_text_box_label = wx.StaticText(main_panel, label="Donation Formatting")
-        donation_formatting_text_box = wx.TextCtrl(main_panel, 1, size=(500,-1))
+        self.file_min_text_box_label = wx.StaticText(self.main_panel, label="File Minimum - minimum donation amount before adding to the list")
+        self.file_min_text_box = FS.FloatSpin(self.main_panel, 1, size=(100,-1), min_val=0, max_val=1000, increment=1.0, digits=1)
+        self.file_min_text_box.SetValue(self.config.getfloat("Donation Tracker Config", 'fileminimum'))
         
-        top_donation_formatting_text_box_label = wx.StaticText(main_panel, label="Top Donation Formatting")
-        top_donation_formatting_text_box = wx.TextCtrl(main_panel, 1, size=(500,-1))
         
-        donation_list_formatting_text_box_label = wx.StaticText(main_panel, label="Donation List Formatting")
-        donation_list_formatting_text_box = wx.TextCtrl(main_panel, 1, size=(500,-1))
+        self.donation_list_amount_box_label = wx.StaticText(self.main_panel, label="Donation List Amount - number of donations to include in the list")
+        self.donation_list_amount_box = wx.SpinCtrl(self.main_panel, 1, size=(100,-1), min=0, max=30)
+        self.donation_list_amount_box.SetValue(self.config.getint("Donation Tracker Config", 'donationlistamount'))
         
-        console_formatting_text_box_label = wx.StaticText(main_panel, label="Console Formatting")
-        console_formatting_text_box = wx.TextCtrl(main_panel, 1, size=(500,-1))
         
-        formatting_help_label = wx.StaticText(main_panel, label="""
+        self.play_sound_checkbox = wx.CheckBox(self.main_panel, 1, "Play Sound - Play a sounds for new donations")
+        self.play_sound_checkbox.SetValue(self.config.getboolean("Donation Tracker Config", 'playwav'))
+        
+        self.donation_sound_text_box_label = wx.StaticText(self.main_panel, label="New Donation Sound - sound to play with a new donation. Enter the file name. MUST be in WAV format")
+        self.donation_sound_text_box = wx.TextCtrl(self.main_panel, 1, size=(400,-1))
+        self.donation_sound_text_box.SetValue(self.config.get("Donation Tracker Config", 'donationwav'))
+        
+        self.top_donation_sound_text_box_label = wx.StaticText(self.main_panel, label="New Top Donation Sound - sound to play with a new top donation. Enter the file name. MUST be in WAV format")
+        self.top_donation_sound_text_box = wx.TextCtrl(self.main_panel, 1, size=(400,-1))
+        self.top_donation_sound_text_box.SetValue(self.config.get("Donation Tracker Config", 'topdonationwav'))
+        
+        
+        self.donation_formatting_label = wx.StaticText(self.main_panel, label="Donation Formatting - format how the donations will look. For advanced users only")
+        
+        self.donation_formatting_text_box_label = wx.StaticText(self.main_panel, label="Donation Formatting")
+        self.donation_formatting_text_box = wx.TextCtrl(self.main_panel, 1, size=(500,-1))
+        self.donation_formatting_text_box.SetValue(self.config.get("Donation Tracker Config", 'donationformatting'))
+        
+        self.top_donation_formatting_text_box_label = wx.StaticText(self.main_panel, label="Top Donation Formatting")
+        self.top_donation_formatting_text_box = wx.TextCtrl(self.main_panel, 1, size=(500,-1))
+        self.top_donation_formatting_text_box.SetValue(self.config.get("Donation Tracker Config", 'topdonationformatting'))
+        
+        self.donation_list_formatting_text_box_label = wx.StaticText(self.main_panel, label="Donation List Formatting")
+        self.donation_list_formatting_text_box = wx.TextCtrl(self.main_panel, 1, size=(500,-1))
+        self.donation_list_formatting_text_box.SetValue(self.config.get("Donation Tracker Config", 'donationlistformatting'))
+        
+        self.console_formatting_text_box_label = wx.StaticText(self.main_panel, label="Console Formatting")
+        self.console_formatting_text_box = wx.TextCtrl(self.main_panel, 1, size=(500,-1))
+        self.console_formatting_text_box.SetValue(self.config.get("Donation Tracker Config", 'consoleformatting'))
+        
+        self.formatting_help_label = wx.StaticText(self.main_panel, label="""
                 {amount} = Amount with currency sign
                 {note} = Note/memo field
                 {username} = Twitch Username of contributer
@@ -156,94 +198,106 @@ class ConfigWindow(wx.Frame):
             """)
         
         # layout
-        panel_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.panel_sizer = wx.BoxSizer(wx.VERTICAL)
         
-        panel_sizer.Add(channel_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        panel_sizer.Add(channel_text_box, border=20, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.channel_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.channel_text_box, border=20, flag= wx.ALIGN_LEFT | wx.BOTTOM)
         
-        panel_sizer.Add(api_key_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        panel_sizer.Add(api_key_text_box, border=50, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.api_key_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.api_key_text_box, border=50, flag= wx.ALIGN_LEFT | wx.BOTTOM)
         
-        panel_sizer.Add(clear_files_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        panel_sizer.Add(clear_donation_list_checkbox, border=10, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        panel_sizer.Add(clear_recent_donation_checkbox, border=10, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        panel_sizer.Add(clear_top_donation_checkbox, border=50, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.clear_files_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.clear_donation_list_checkbox, border=10, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.clear_recent_donation_checkbox, border=10, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.clear_top_donation_checkbox, border=50, flag= wx.ALIGN_LEFT | wx.BOTTOM)
         
-        panel_sizer.Add(sound_min_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        panel_sizer.Add(sound_min_text_box, border=20, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.sound_min_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.sound_min_text_box, border=20, flag= wx.ALIGN_LEFT | wx.BOTTOM)
         
-        panel_sizer.Add(file_min_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        panel_sizer.Add(file_min_text_box, border=50, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.file_min_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.file_min_text_box, border=50, flag= wx.ALIGN_LEFT | wx.BOTTOM)
         
-        panel_sizer.Add(donation_list_amount_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        panel_sizer.Add(donation_list_amount_box, border=50, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.donation_list_amount_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.donation_list_amount_box, border=50, flag= wx.ALIGN_LEFT | wx.BOTTOM)
         
-        panel_sizer.Add(play_sound_checkbox, border=10, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.play_sound_checkbox, border=10, flag= wx.ALIGN_LEFT | wx.BOTTOM)
         
-        panel_sizer.Add(donation_sound_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        panel_sizer.Add(donation_sound_text_box, border=10, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.donation_sound_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.donation_sound_text_box, border=10, flag= wx.ALIGN_LEFT | wx.BOTTOM)
         
-        panel_sizer.Add(top_donation_sound_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        panel_sizer.Add(top_donation_sound_text_box, border=50, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        
-        
-        panel_sizer.Add(donation_formatting_label, border=20, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        
-        panel_sizer.Add(donation_formatting_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        panel_sizer.Add(donation_formatting_text_box, border=20, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        
-        panel_sizer.Add(top_donation_formatting_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        panel_sizer.Add(top_donation_formatting_text_box, border=20, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        
-        panel_sizer.Add(donation_list_formatting_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        panel_sizer.Add(donation_list_formatting_text_box, border=20, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        
-        panel_sizer.Add(console_formatting_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        panel_sizer.Add(console_formatting_text_box, border=20, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        
-        panel_sizer.Add(formatting_help_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
-        
-        main_panel.SetSizer(panel_sizer)
-        
-        scroll_sizer = wx.BoxSizer(wx.VERTICAL)
-        scroll_sizer.Add(main_panel, border=60, flag= wx.ALIGN_LEFT | wx.ALL)
-        
-        scroll_window.SetSizer(scroll_sizer)
-        
-        window_sizer = wx.BoxSizer(wx.VERTICAL)
-        window_sizer.Add(scroll_window, 1, wx.ALL|wx.EXPAND, 0)
+        self.panel_sizer.Add(self.top_donation_sound_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.top_donation_sound_text_box, border=50, flag= wx.ALIGN_LEFT | wx.BOTTOM)
         
         
-        main_panel.SetAutoLayout(True)
-        main_panel.Layout()
-        main_panel.Fit()
+        self.panel_sizer.Add(self.donation_formatting_label, border=20, flag= wx.ALIGN_LEFT | wx.BOTTOM)
         
-        self.SetSizer(window_sizer)
+        self.panel_sizer.Add(self.donation_formatting_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.donation_formatting_text_box, border=20, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        
+        self.panel_sizer.Add(self.top_donation_formatting_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.top_donation_formatting_text_box, border=20, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        
+        self.panel_sizer.Add(self.donation_list_formatting_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.donation_list_formatting_text_box, border=20, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        
+        self.panel_sizer.Add(self.console_formatting_text_box_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        self.panel_sizer.Add(self.console_formatting_text_box, border=20, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        
+        self.panel_sizer.Add(self.formatting_help_label, border=5, flag= wx.ALIGN_LEFT | wx.BOTTOM)
+        
+        self.main_panel.SetSizer(self.panel_sizer)
+        
+        self.scroll_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.scroll_sizer.Add(self.main_panel, border=60, flag= wx.ALIGN_LEFT | wx.TOP | wx.LEFT | wx.RIGHT)
+        
+        self.scroll_window.SetSizer(self.scroll_sizer)
+        
+        self.window_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.window_sizer.Add(self.scroll_window, 1, wx.ALL|wx.EXPAND, 0)
+        
+        
+        self.main_panel.SetAutoLayout(True)
+        self.main_panel.Layout()
+        self.main_panel.Fit()
+        
+        self.SetSizer(self.window_sizer)
         self.Center()
         
         # scroll settings
-        main_panel_width, main_panel_height = main_panel.GetSize()
-        unit = 20
-        scroll_window.SetScrollbars( unit, unit, main_panel_width/unit, main_panel_height/unit )
+        self.main_panel_width, self.main_panel_height = self.main_panel.GetSize()
+        self.unit = 20
+        self.scroll_window.SetScrollbars( self.unit, self.unit, self.main_panel_width/self.unit, self.main_panel_height/self.unit )
         
     def nativeClose(self, event):
-        self.write_ini()
+        self.write_config()
         self.Destroy()
         self.parent_window.Show()
 
-    def write_ini(self):
-        print('write the ini')
+    def write_config(self):
+        self.config.set('Donation Tracker Config', 'channel', self.channel_text_box.GetValue())
+        self.config.set('Donation Tracker Config', 'api-key', self.api_key_text_box.GetValue())
+        self.config.set('Donation Tracker Config', 'dailydonationlist', self.clear_donation_list_checkbox.GetValue())
+        self.config.set('Donation Tracker Config', 'dailyrecentdonation', self.clear_recent_donation_checkbox.GetValue())
+        self.config.set('Donation Tracker Config', 'dailytopdonation', self.clear_top_donation_checkbox.GetValue())
+        self.config.set('Donation Tracker Config', 'soundminimum', self.sound_min_text_box.GetValue())
+        self.config.set('Donation Tracker Config', 'fileminimum', self.file_min_text_box.GetValue())
+        self.config.set('Donation Tracker Config', 'donationlistamount', self.donation_list_amount_box.GetValue())
+        self.config.set('Donation Tracker Config', 'playwav', self.play_sound_checkbox.GetValue())
+        self.config.set('Donation Tracker Config', 'donationwav', self.donation_sound_text_box.GetValue())
+        self.config.set('Donation Tracker Config', 'topdonationwav', self.top_donation_sound_text_box.GetValue())
+        self.config.set('Donation Tracker Config', 'donationformatting', self.donation_formatting_text_box.GetValue())
+        self.config.set('Donation Tracker Config', 'topdonationformatting', self.top_donation_formatting_text_box.GetValue())
+        self.config.set('Donation Tracker Config', 'donationlistformatting', self.donation_list_formatting_text_box.GetValue())
+        self.config.set('Donation Tracker Config', 'consoleformatting', self.console_formatting_text_box.GetValue())
         
-        #test_file = open(os.path.join(os.getcwd(), 'out_test.txt'), 'w+')
-        #test_file.write(os.getcwd())
-        #test_file.close()
+        with open(resourcePath('settings.ini', user=True), 'w') as fp:
+            self.config.write(fp)
 
 class RunWindow(wx.Frame):
     def __init__(self, parent_window):
         self.parent_window = parent_window
         
         wx.Frame.__init__(self, None, title='Donation Tracker', size=(600, 400))
-        self.SetBackgroundColour((255, 255, 255))
         
         # events
         self.Bind(wx.EVT_CLOSE, self.nativeClose)
@@ -275,12 +329,12 @@ class RunWindow(wx.Frame):
         sys.stdout=redir
         
         try:
-            internal_resource_path = sys._MEIPASS
+            res_dir = sys._MEIPASS
         except Exception:
-            internal_resource_path = os.path.abspath(".")
+            res_dir = os.path.abspath(".")
         
         # start donation tracking in a new thread
-        donations_thread = Thread(target=donations.start_tracking, args=(internal_resource_path,))
+        donations_thread = Thread(target=donations.start_tracking, args=(res_dir,))
         donations_thread.start()
         
     def nativeClose(self, event):
@@ -289,15 +343,22 @@ class RunWindow(wx.Frame):
         
         os._exit(1)
 
-def resourcePath(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS  # @UndefinedVariable
-    except Exception:
-        base_path = os.path.abspath(".")
-        
-    return os.path.join(base_path, relative_path)
+def resourcePath(relative_path = '', user = False):
+    base_dir = ''
+    
+    if getattr(sys, 'frozen', False):
+        # running in a PyInstaller bundle
+        if (user == False):
+            # bundle dir
+            base_dir = sys._MEIPASS
+        else:
+            # user access dir
+            base_dir = os.path.dirname(sys.executable)
+    else:
+        # running in normal Python environment
+        base_dir = os.path.dirname(__file__)
+    
+    return os.path.join(base_dir, relative_path)
 
 def main():
     app = wx.App()
