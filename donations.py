@@ -17,7 +17,7 @@ version = "3.0"
 
 internal_working_dir = os.getcwd()
 
-os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(os.path.dirname(__file__), "cacert.pem")
+#os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(os.path.dirname(__file__), "cacert.pem")
 cacert_location = False
 
 def str2bool(v):
@@ -237,7 +237,7 @@ def getConnected():
 		raise Exception('Channel is blank in config')
 	if not key:
 		raise Exception('API-Key is blank in config')
-	socketIO = SocketIO('https://www.streamdonations.net') # , 443, verify=cacert_location
+	socketIO = SocketIO('http://www.streamdonations.net', verify=False) # , 443, verify=cacert_location
 	socketIO.on('login', login)
 	socketIO.on('authenticated', authenticated)
 	socketIO.on('authentication failed', authenticationFailed)
@@ -251,7 +251,7 @@ def start_tracking(internal_resource_path):
 	internal_working_dir = internal_resource_path
 	
 	#os.environ['REQUESTS_CA_BUNDLE'] = resourcePath('cacert.pem')
-	cacert_location = os.environ['REQUESTS_CA_BUNDLE']
+	#cacert_location = os.environ['REQUESTS_CA_BUNDLE']
 	
 	print "Donation Tracker v%s" % version
 	print ''

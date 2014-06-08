@@ -5,14 +5,6 @@ import sys, os
 import ConfigParser
 from threading import Thread
 
-class RedirectText(object):
-    def __init__(self, aWxTextCtrl):
-        self.out = aWxTextCtrl
- 
-    def write(self, string):
-        #self.out.SetInsertionPoint()
-        wx.CallAfter(self.out.AppendText, string)
-
 class MainWindow(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None, title='Donation Tracker', size=(500, 300), style=wx.CAPTION | wx.CLOSE_BOX | wx.MINIMIZE_BOX)
@@ -293,11 +285,19 @@ class ConfigWindow(wx.Frame):
         with open(resourcePath('settings.ini', user=True), 'w') as fp:
             self.config.write(fp)
 
+class RedirectText(object):
+    def __init__(self, aWxTextCtrl):
+        self.out = aWxTextCtrl
+ 
+    def write(self, string):
+        #self.out.SetInsertionPoint()
+        wx.CallAfter(self.out.AppendText, string)
+
 class RunWindow(wx.Frame):
     def __init__(self, parent_window):
         self.parent_window = parent_window
         
-        wx.Frame.__init__(self, None, title='Donation Tracker', size=(600, 400))
+        wx.Frame.__init__(self, None, title='Donation Tracker', size=(800, 450))
         
         # events
         self.Bind(wx.EVT_CLOSE, self.nativeClose)
@@ -309,8 +309,10 @@ class RunWindow(wx.Frame):
         # interface
         #output_panel = wx.Panel(self, -1) # style=wx.SUNKEN_BORDER
         #output_panel.SetBackgroundColour((0, 0, 0))
-        log = wx.TextCtrl(self, -1, size=(400,300), style = wx.TE_RICH | wx.TE_MULTILINE | wx.TE_READONLY)
+        log = wx.TextCtrl(self, -1, size=(600,350), style = wx.TE_RICH | wx.TE_MULTILINE | wx.TE_READONLY)
         log.SetBackgroundColour((0, 0, 0))
+        log_font = wx.Font(11, wx.MODERN, wx.NORMAL, wx.NORMAL, False, u'Consolas')
+        log.SetFont(log_font)
         log.SetForegroundColour((200, 200, 200))
         
         # layout
